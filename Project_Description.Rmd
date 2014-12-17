@@ -1,0 +1,228 @@
+---
+title: "Odds Ratio of Sequence and Categorical Data"
+author: "Marian L. Schmidt"
+date: "December 17, 2014"
+output: html_document
+---
+
+##Objective
+The objective of the functions below is to create an odds-ratio and test for significance through a paired wilcoxon test.
+
+###Functions  
++ abundPlot:  Calculates the standard error and then plots the relative abundances based on "PercentPhylum" column of dataframe  
++ log2fold_calc:  Calculates the odds ratio with column 
+
+
+
+###Input Data
+The input data should be in the form of a data frame with column names that include:
+ + sample, Phylum, SeqAbundance, PercentPhylum, and a few columns of categorical data.  
+ 
+ 
+ 
+
+
+
+
+```{r}
+data <- read.csv("InputData.csv", header = TRUE)
+```
+
+
+```{r R-Cookbook Functions & Load Functions, echo = FALSE}
+source('RCookbookFunctions_summarySE_multiplot.R')
+```
+
+
+###  Before we go odds ratio-ing, let's make a plot of the relative abundances first!
+```{r}
+abundPlot <- function(dataframe){ #uses PercentPhylum column to make an abundance plot
+  source('RCookbookFunctions_summarySE_multiplot.R')
+  require(ggplot2)
+  sum_stats <- summarySE(dataframe, measurevar = "PercentPhylum", groupvars = "Phylum") #sum_stats is a data frame for the relative abundance figure
+  sum_stats$Phylum <- factor(sum_stats$Phylum, levels = sum_stats$Phylum[order(sum_stats$PercentPhylum)])  #Order by the SeqAbundance
+  abund <- subset(sum_stats,PercentPhylum > 0.1)
+  abundPlot <- ggplot(abund, aes(y=PercentPhylum, x=Phylum))  +
+  geom_bar(stat="identity", position=position_dodge(),  fill = "darkorchid3", colour = "black") +
+  theme_bw() + ggtitle("Phyla Above 0.1% in All Samples") +
+  xlab("Phylum") + ylab("Mean Relative Abundance (%)") +
+  geom_errorbar(aes(ymin = PercentPhylum -se, ymax = PercentPhylum +se), width = 0.25) + coord_flip() +
+  theme(axis.title.x = element_text(face="bold", size=16),
+        axis.text.x = element_text(angle=0, colour = "black", size=14),
+        axis.text.y = element_text(colour = "black", size=14),
+        axis.title.y = element_text(face="bold", size=16),
+        plot.title = element_text(face="bold", size = 20),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        legend.position="none")
+  return(abundPlot)
+}
+
+abundPlot(data)
+```
+
+
+###The functions
+```{r}
+#This function takes two dataframes with Mean_SeqAbundance and makes a log 2 fold ratio dataframe
+log2fold_calc <- function(dataframe1, dataframe2){  
+  #Make a new data frame with the log2-fold ratio
+  data_ratio <- log2(dataframe1$Mean_SeqAbund/dataframe2$Mean_SeqAbund) #creates a vector with log2 values
+  data_ratio <- data.frame(dataframe2$Phylum, data_ratio) #combine the Phylum names with it
+  names(data_ratio)[1:2]<-c("Phylum", "Ratio") #Rename the column names to better represent
+  #Help to position labels on graph:  http://learnr.wordpress.com/2009/06/01/ggplot2-positioning-of-barplot-category-labels/
+  data_ratio$colour <- ifelse(data_ratio$Ratio < 0, "firebrick1","steelblue")
+  data_ratio$hjust <- ifelse(data_ratio$Ratio > 0, 1.3, -0.3)
+  #Now we have to delete Phyla from our data frame that are Inf, -Inf, or NaN
+  sub_data <- subset(data_ratio, data_ratio$Ratio != "Inf" & data_ratio$Ratio != "-Inf" & data_ratio$Ratio != "NaN")
+  sub_data$Phylum <- factor(sub_data$Phylum, levels = sub_data$Phylum[order(sub_data$Ratio)])
+  deleted_phy <- subset(data_ratio, data_ratio$Ratio == "Inf" | data_ratio$Ratio == "-Inf" | data_ratio$Ratio == "NaN")
+  return(list(deleted_data = deleted_phy, ratio_data = sub_data))
+}
+
+
+delete_samps <- function(dataframe, category, PhylaToDelete) {  #PHYLATODELETE MUST BE a VECTOR!!!
+  dataframe$sample2 <- gsub("3um", "", dataframe$sample) #create new column with substitute nothing for "3um"
+  dataframe$sample = NULL   #delete old column
+  colnames(dataframe)[which(names(dataframe) == "sample2")] <- "sample"  #Change column name to represent what value really is
+  dataframe$sample <- as.factor(dataframe$sample)
+  #http://stackoverflow.com/questions/2641653/pass-a-data-frame-column-name-to-a-function
+  erp <- split(dataframe, dataframe[,category])  ### make 2 data frames and split the 2  
+  sux <- setdiff(erp[[1]]$sample, erp[[2]]$sample);   #find the differences between 1 and 2
+  this_sux <- setdiff(erp[[2]]$sample, erp[[1]]$sample);   #Find the differences between 2 and 1
+  god <- subset(erp[[1]], !(sample %in% sux))  #Subset out those unmatched samples
+  god2 <- subset(erp[[2]], !(sample %in% this_sux))  #Subset out those unmatched samples
+  deleted_samps <- c(sux, this_sux) #for output of what samples were deleted  
+  deleted_phyla1 <- subset(god, !(Phylum %in% PhylaToDelete))
+  deleted_phyla2 <- subset(god2, !(Phylum %in% PhylaToDelete))  
+  return(list(samps_deleted = deleted_samps, allsamps1 = god, allsamps2 = god2, deletedphyla1 = deleted_phyla1, deletedphyla2 = deleted_phyla2))
+}
+
+
+#Both dataframes must have a column named Phylum and a column named SeqAbundance
+#Dataframes must also be same dimensions
+wilcoxtest <- function(dataframe1, dataframe2){   #each data frame must have column named Phyla and Column for seqabundance
+  ##Make a vector of all the names of the Phyla in our samples
+  phylumlist_dataframe1<-as.character(unique(dataframe1$Phylum))
+  phylumlist_dataframe2<-unique(dataframe2$Phylum)
+  #setdiff(phylumlist_dataframe1, phylumlist_dataframe2)
+  phylumlist <- phylumlist_dataframe1
+  #Make data frame filled with NAs to hold results inside of
+  results <- data.frame(matrix(NA,length(phylumlist),2))
+  names(results) <- c("Phylum", "P_Value")
+  for(i in 1:length(phylumlist)){
+    df1 <- subset(dataframe1, Phylum == phylumlist[i]) #free phylum i
+    df2 <- subset(dataframe2, Phylum == phylumlist[i]) #particle phylum i
+    wilcox <- wilcox.test(df1$SeqAbundance, df2$SeqAbundance, paired = TRUE) # do a wilcoxon test on phylum i free vs. particle
+    results[i,1]<-phylumlist[i] #put the name of the phylum in the table
+    results[i,2]<-wilcox$p.value #put the wilcoxon p value in the table. 
+  }
+  #We have to bonferroni correct because we ran lots of tests --> some are significant when they shouldn't be!
+  num_tests <- length(unique(results$Phylum)) #calculate the number of tests
+  results$Bonferroni_P<-results$P_Value/num_tests #calculate the bonferonni corrected P
+  P_cutoff <- 0.05/length(results$Phylum) # Bonferonni Signicance value
+  sigresults<-subset(results,Bonferroni_P<P_cutoff)  #These are all the significant results with Bonferonni Correction!
+  return(list(N_test = num_tests, sigs = sigresults, p.value = P_cutoff))
+}
+```
+
+
+
+###Using the Functions
+```{r}
+#######  PRODUCTIVE FREE-LIVING: Top vs. Bottom
+prod <- subset(data, trophicstate == "Productive")
+free_prodata <- subset(prod, filter == "Free")
+freeprod_summarystats <- summarySE(free_prodata, measurevar = "SeqAbundance", groupvars = c("limnion", "Phylum"))
+colnames(freeprod_summarystats)[which(names(freeprod_summarystats) == "SeqAbundance")] <- "Mean_SeqAbundance"  #Change column name to represent what value really is
+top_freeprod <- subset(freeprod_summarystats, limnion == "Top")
+bot_freeprod <- subset(freeprod_summarystats, limnion == "Bottom")
+dim(top_freeprod); dim(bot_freeprod)
+freeprod <- log2fold_calc(top_freeprod, bot_freeprod)
+delete_freerod <- freeprod$deleted_data
+delphy_freerod <- as.vector(delete_freerod$Phylum)
+freeproddist <- subset(free_prodata, select = c("Phylum", "SeqAbundance", "filter", "sample", "limnion")) #Get distributions from original file
+freeprod_dist <- subset(freeproddist, filter == "Free")
+##
+freeprod_dist$sample2 <- gsub("H", "E", freeprod_dist$sample) #create new column with substitute H for E so we don't throw all the samps out
+freeprod_dist$sample = NULL 
+colnames(freeprod_dist)[which(names(freeprod_dist) == "sample2")] <- "sample"  #Change column name to represent what value really is
+##
+freeprodsamps <- delete_samps(freeprod_dist,"limnion", delphy_freerod) 
+freeprodfree <- (freeprodsamps$deletedphyla1)
+freeprodfree <- (freeprodsamps$deletedphyla2)
+dim(freeprodfree); dim(freeprodfree)
+freeprodPAFL_sigs <- wilcoxtest(freeprodfree, freeprodfree)
+freeprodwoop <- freeprodPAFL_sigs$sigs
+
+freeprodrat <- as.data.frame(freeprod$ratio_data)
+
+freeprodrat_plot <- ggplot(freeprodrat, aes(y=Ratio, x = Phylum, label = Phylum, hjust=hjust, fill = colour)) + 
+  geom_bar(stat="identity", position=position_dodge(), colour = "black") +
+  geom_text(aes(y=0, fill = colour)) + theme_bw() + ylim(min(freeprodrat$Ratio),max(freeprodrat$Ratio)) +
+  #annotate("text", label = "A", x = 24.5, y = -6, size = 14, colour = "black", face = "bold") +
+  coord_flip() + ggtitle("Productive Free-Living Samples: \nSurface vs Bottom Waters") + 
+  labs(y = "Log2-Fold Abundance Ratio", x = "") + scale_x_discrete(breaks = NULL) +
+  scale_fill_manual(name  ="", breaks=c("steelblue", "firebrick1"), 
+                    labels=c("More Abundant in Surface Waters", "More Abundant in Bottom Waters"),
+                    values = c("magenta4", "darkorange")) +
+  theme(axis.title.x = element_text(face="bold", size=16),
+        axis.text.x = element_text(angle=0, colour = "black", size=14),
+        axis.text.y = element_text(colour = "black", size=14),
+        axis.title.y = element_text(face="bold", size=16),
+        plot.title = element_text(face="bold", size = 16),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        legend.justification=c(1,0), legend.position=c(0.5, 0.4)); 
+
+
+
+
+
+#######  UNPRODUCTIVE FREE-LIVING: Top vs. Bottom
+unprod <- subset(data, trophicstate == "Unproductive")
+free_unprodata <- subset(unprod, filter == "Free")
+freeunprod_summarystats <- summarySE(free_unprodata, measurevar = "SeqAbundance", groupvars = c("limnion", "Phylum"))
+colnames(freeunprod_summarystats)[which(names(freeunprod_summarystats) == "SeqAbundance")] <- "Mean_SeqAbundance"  #Change column name to represent what value really is
+top_freeunprod <- subset(freeunprod_summarystats, limnion == "Top")
+bot_freeunprod <- subset(freeunprod_summarystats, limnion == "Bottom")
+dim(top_freeunprod); dim(bot_freeunprod)
+freeunprod <- log2fold_calc(top_freeunprod, bot_freeunprod)
+delete_freerod <- freeunprod$deleted_data
+delphy_freerod <- as.vector(delete_freerod$Phylum)
+freeunproddist <- subset(free_unprodata, select = c("Phylum", "SeqAbundance", "filter", "sample", "limnion")) #Get distributions from original file
+freeunprod_dist <- subset(freeunproddist, filter == "Free")
+##
+freeunprod_dist$sample2 <- gsub("H", "E", freeunprod_dist$sample) #create new column with substitute H for E so we don't throw all the samps out
+freeunprod_dist$sample = NULL 
+colnames(freeunprod_dist)[which(names(freeunprod_dist) == "sample2")] <- "sample"  #Change column name to represent what value really is
+##
+freeunprodsamps <- delete_samps(freeunprod_dist,"limnion", delphy_freerod) 
+freeunprodfree <- (freeunprodsamps$deletedphyla1)
+freeunprodfree <- (freeunprodsamps$deletedphyla2)
+dim(freeunprodfree); dim(freeunprodfree)
+freeunprodPAFL_sigs <- wilcoxtest(freeunprodfree, freeunprodfree)
+freeunprodwoop <- freeunprodPAFL_sigs$sigs
+
+freeunprodrat <- as.data.frame(freeunprod$ratio_data)
+
+freeunprodrat_plot <- ggplot(freeunprodrat, aes(y=Ratio, x = Phylum, label = Phylum, hjust=hjust, fill = colour)) + 
+  geom_bar(stat="identity", position=position_dodge(), colour = "black") +
+  geom_text(aes(y=0, fill = colour)) + theme_bw() + ylim(min(freeunprodrat$Ratio),(max(freeunprodrat$Ratio)+3)) +
+  #annotate("text", label = "A", x = 24.5, y = -6, size = 14, colour = "black", face = "bold") +
+  coord_flip() + ggtitle("Unproductive Free-Living Samples: \nSurface vs Bottom Waters") + 
+  labs(y = "Log2-Fold Abundance Ratio", x = "") + scale_x_discrete(breaks = NULL) +
+  scale_fill_manual(name  ="", breaks=c("steelblue", "firebrick1"), 
+                    labels=c("More Abundant in Surface Waters", "More Abundant in Bottom Waters"),
+                    values = c("magenta4", "darkorange")) +
+  theme(axis.title.x = element_text(face="bold", size=16),
+        axis.text.x = element_text(angle=0, colour = "black", size=14),
+        axis.text.y = element_text(colour = "black", size=14),
+        axis.title.y = element_text(face="bold", size=16),
+        plot.title = element_text(face="bold", size = 16),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        legend.justification=c(1,0), legend.position=c(0.6, 0.35)); 
+
+```
+
