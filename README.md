@@ -2,7 +2,7 @@ Calculate and Plot the Log2-Fold Abundance Ratio
 =========
 
 ##Objective
-An odds-ratio is a good way to quantify and visualize how strong of an association a variable (in this case 16S tag-sequence abundance data) is between different exposures.  By exposure, I mean any categorical variable.  For example, it could be the experimentally-manipulated versus the control, or one treatment versus another or, as it is in this case, the surface of the lake versus the bottom of a lake during summer stratification.
+An odds-ratio is a good way to quantify and visualize how strong of an association a variable (in this case 16S tag-sequence abundance data) is between different exposures.  By exposure, I mean any categorical variable.  For example, it could be the experimentally-manipulated versus the control, or one treatment versus another or, as it is in the case of the example data, the surface of the lake versus the bottom of a lake during summer stratification.
 
 The objective of the functions below is to three-fold:  
     **1.**  Create an abundance plot with standard errors.  
