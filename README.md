@@ -85,7 +85,7 @@ abundPlot <- function(dataframe){ #uses PercentPhylum column to make an abundanc
 abundPlot(data)
 ```
 
-<img src="README_files/figure-html/R-Cookbook Functions & Load Functions-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="README_files/figure-html/abundPlot-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ####To Calculate and Plot the Log2-Fold Abundance Ratio
@@ -152,5 +152,7 @@ freeprod_data <- freeprod$ratio_data
 oddsratio_plot(freeprod_data, "Top", "Bottom")
 ```
 
-<img src="README_files/figure-html/unnamed-chunk-3-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="README_files/figure-html/example data-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+
 

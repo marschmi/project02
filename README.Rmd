@@ -54,7 +54,7 @@ _**Important note:** These functions require the summarySE function from the [R 
 
 ####  Before we go odds ratio-ing, let's make a plot of the relative abundances first!
 ##### We can use the abundPlot function
-```{r R-Cookbook Functions & Load Functions, echo = TRUE, message=FALSE, fig.align='center', fig.height=6, fig.width=6}
+```{r abundPlot, echo = TRUE, message=FALSE, fig.align='center', fig.height=6, fig.width=6}
 abundPlot <- function(dataframe){ #uses PercentPhylum column to make an abundance plot
   source("RCookbook_summarySE.R")
   require(ggplot2)
@@ -84,7 +84,7 @@ abundPlot(data)
 ####To Calculate and Plot the Log2-Fold Abundance Ratio
 #####Calculate with log2fold_calc function
 #####Plot with oddsratio_plot
-```{r}
+```{r log2fold_calc and oddsratio_plot}
 #This function takes one dataframe and a category to make a log2-fold abundance ratio dataframe
 #Must put category in quotes!
 log2fold_calc <- function(dataframe, category){  #must have SeqAbundance and Phylum columns, category column must only have 2 categories. 
@@ -137,9 +137,11 @@ oddsratio_plot <- function(dataframe, legend_label1, legend_label2){
 
 
 ###Example Dataset Using the Functions
-```{r fig.height = 8, fig.align='center', fig.width=12}
+```{r example data, fig.height = 8, fig.width=12, warning = FALSE, fig.align='center'}
 freeprod <- log2fold_calc(data, "limnion")
 freeprod_data <- freeprod$ratio_data
 oddsratio_plot(freeprod_data, "Top", "Bottom")
 ```
+
+
 
