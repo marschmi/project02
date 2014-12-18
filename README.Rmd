@@ -137,7 +137,7 @@ oddsratio_plot <- function(dataframe, legend_label1, legend_label2){
 
 
 ###Example Dataset Using the Functions
-```{r example data, fig.height = 8, fig.width=12, warning = FALSE, fig.align='center'}
+```{r example data, fig.height = 10, fig.width=12, warning = FALSE, fig.align='center'}
 freeprod <- log2fold_calc(data, "limnion")
 freeprod_data <- freeprod$ratio_data
 oddsratio_plot(freeprod_data, "Top", "Bottom")
