@@ -31,7 +31,7 @@ Please see the "Project_Description.Rmd" file or the "oddsratio_functions.R" for
     + **Output:** A list containing 2 variables including: 
         1. *deleted_data:* Data frame of deleted data including Infs, -Infs, and NaN.  
         2. *ratio_data:* Data frame of log2-fold abundance ratio to beused in oddsratio_plot function.
-+ **oddsratio_plot:**  Creates a graph with the log2fold_calc output function.  
++ **oddsratio_plot:**  Creates a graph with the log2fold_calc output.  
     + **Input:**  The following 3 things:
           1. The ratio_data output from the log2fold_calc function. 
           2. First Legend Label.  
